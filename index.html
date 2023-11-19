@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Piano Keyboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tonejs/midi@2"></script>
+<style>
+  body {
+    background-color: #f8fafc;
+  }
+  canvas {
+    border: 1px solid #e5e7eb;
+    background-color: #ffffff;
+  }
+</style>
+</head>
+<body class="flex items-center justify-center h-screen">
+<canvas id="piano" width="700" height="200"></canvas>
+
+<script>
+  const canvas = document.getElementById('piano');
+  const ctx = canvas.getContext('2d');
+  const whiteKeysCount = 14;
+  const blackKeysCount = 10;
+  const whiteKeyWidth = canvas.width / whiteKeysCount;
+  const blackKeyWidth = whiteKeyWidth / 2;
+  const blackKeyHeight = canvas.height / 1.5;
+  const keys = [];
+
+  function drawPiano() {
+    // Draw white keys
+    for (let i = 0; i < whiteKeysCount; i++) {
+      const x = i * whiteKeyWidth;
+      ctx.fillStyle = 'white';
+      ctx.fillRect(x, 0, whiteKeyWidth, canvas.height);
+      ctx.strokeRect(x, 0, whiteKeyWidth, canvas.height);
+      keys.push({ x, y: 0, width: whiteKeyWidth, height: canvas.height, note: 'white', index: i });
+    }
+
+    // Draw black keys
+    let blackKeyIndex = 0;
+    for (let i = 0; i < whiteKeysCount; i++) {
+      if (i !== 0 && i !== 3 && i !== 7 && i !== 10) {
+        const x = i * whiteKeyWidth - blackKeyWidth / 2;
+        ctx.fillStyle = 'black';
+        ctx.fillRect(x, 0, blackKeyWidth, blackKeyHeight);
+        keys.push({ x, y: 0, width: blackKeyWidth, height: blackKeyHeight, note: 'black', index: blackKeyIndex });
+        blackKeyIndex++;
+      }
+    }
+  }
+
+  function playFrequency(key) {
+    // Frequencies for a standard octave, starting from middle C (C4)
+    const frequencies = [
+      261.63, 277.18, 293.66, 311.13, 329.63, 349.23, 369.99,
+      392.00, 415.30, 440.00, 466.16, 493.88, 523.25
+    ];
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    let frequency;
+    if (key.note === 'white') {
+      frequency = frequencies[key.index % frequencies.length];
+    } else {
+      // Black keys are the sharp/flat notes
+      frequency = frequencies[(key.index + 1) % frequencies.length];
+    }
+
+    oscillator.frequency.value = frequency;
+    oscillator.type = 'sine';
+    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+    gainNode.gain.linearRampToValueAtTime(1, audioContext.currentTime + 0.01);
+    oscillator.start(audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 1);
+    oscillator.stop(audioContext.currentTime + 1.01);
+  }
+
+  canvas.addEventListener('mousedown', function(event) {
+    const x = event.offsetX;
+    const y = event.offsetY;
+
+    for (const key of keys) {
+      if (x > key.x && x < key.x + key.width && y > key.y && y < key.y + key.height) {
+        playFrequency(key);
+        break;
+      }
+    }
+  });
+
+  drawPiano();
+</script>
+</body>
+</html>
